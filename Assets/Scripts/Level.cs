@@ -77,7 +77,7 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
 
     public Camera cam;
 
-    static readonly string[] phrases = {"Hard Ball to Swallow", "A Piece of Cake", "Balls Goes Up Balls Come Down",  "Balls Doesn't Grow On Trees", "Two Down, One to Go", "Down For The Count"};
+    static readonly string[] phrases = { "Hard Ball to Swallow", "A Piece of Cake", "Balls Goes Up Balls Come Down", "Balls Doesn't Grow On Trees", "Two Down, One to Go", "Down For The Count" };
 
     private void Awake()
     {
@@ -111,54 +111,42 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
     {
         Application.targetFrameRate = 60;
 
-#if UNITY_IOS
-        /*var delta = Vector2.up * (Screen.height - Screen.safeArea.height - Screen.safeArea.y);
-        BannerBack.GetComponent<RectTransform>().sizeDelta += delta;
-        GameMenu.instance.GetComponent<RectTransform>().sizeDelta -= delta;
-        GameMenu.instance.GetComponent<RectTransform>().anchoredPosition += 0.5f*delta;
-        FinishMenu.instance.GetComponent<RectTransform>().sizeDelta -= delta * 2f;
-        FinishMenu.instance.GetComponent<RectTransform>().anchoredPosition += 1.0f * delta;
-        SuckMenu.instance.GetComponent<RectTransform>().sizeDelta -= delta * 2f;
-        SuckMenu.instance.GetComponent<RectTransform>().anchoredPosition += 1.0f * delta;
-        */       
-#endif
+        // Циклически ограничиваем уровень от 0 до 2
+        playerState.level %= 3; // Уровни будут: 0, 1, 2
+        PlayerPrefs.SetInt("level", playerState.level); // Сохраняем изменения в PlayerPrefs для гарантии
+        PlayerPrefs.Save();
+
         rotsum = 0f;
 
         playerState.Load();
 
         playerState.LevelStart();
 
+        
+
         var targetAspect = 1080f / 1920f;
         var currentAspect = Screen.width / (float)Screen.height;
 
-        if(targetAspect > currentAspect)
-        Camera.main.transform.position = Vector3.back * 16f * targetAspect / currentAspect;
+        if (targetAspect > currentAspect)
+            Camera.main.transform.position = Vector3.back * 16f * targetAspect / currentAspect;
 
         SkipButton.SetActive(AdsAnaliticsManager.instance.CanShowRewarded());
 
-        if(PlayerPrefs.GetInt(IAP_Manager.kProductIDNonConsumable) == 1)
+        if (PlayerPrefs.GetInt(IAP_Manager.kProductIDNonConsumable) == 1)
         {
             NoAdsButton.gameObject.SetActive(false);
             BannerBack.SetActive(false);
         }
 
-        //if (RemoteSettings.GetBool("NoBanner"))
-        {
-            BannerBack.SetActive(false);
-        }
+        BannerBack.SetActive(false);
 
-        if (PlayerPrefs.GetInt("rate") == 0 && (playerState.level == RemoteSettings.GetInt("RateFirst", 4) || playerState.level == RemoteSettings.GetInt("RateSecond", 9)))
-        {
-            RateMenu.instance.Show();
-        }
-        else if (CanShowAds())
+        if (CanShowAds())
         {
             ShowAds((bool result) => { });
         }
         else
         {
             AdsAnaliticsManager.instance.LoadAds();
-            // BannerBack.SetActive(false);
         }
 
         PlayerPrefs.SetInt("SkipAds", 0);
@@ -170,12 +158,6 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
             AdsAnaliticsManager.instance.TrackLevelStart(playerState.level);
         });
 
-        if (!renewNotifications)
-        {
-            renewNotifications = true;
-            //StartCoroutine(SpawnNotifications());
-            PlayerPrefs.Save();
-        }
         ScorePopupSystem.isFirstBall = true;
 
         scoreText.text = playerState.score.ToString();
@@ -191,7 +173,6 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
             gradientBackground.SetColor(gameConfig.gradient3[theme % gameConfig.gradient1.Length], gameConfig.gradient1[theme % gameConfig.gradient3.Length]);
         }
 
-        
         gameConfig.labMaterial.SetColor("_MainColor", gameConfig.colors[theme % gameConfig.colors.Length]);
         gameConfig.labMaterial.SetColor("_RimColor", gameConfig.colors[theme % gameConfig.colors.Length]);
         gameConfig.tubeMaterial.SetColor("_MainColor", gameConfig.tubeColors[theme % gameConfig.tubeColors.Length]);
@@ -214,72 +195,60 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
         playerState.totalBalls = ((playerState.level + ballsLevel - 1) / ballsLevel) * RemoteSettings.GetInt("ballsPerLevel", 15) + RemoteSettings.GetInt("StartBallsCount", 20);
         if (playerState.totalBalls > RemoteSettings.GetInt("maxBalls", 450)) playerState.totalBalls = RemoteSettings.GetInt("maxBalls", 450);
 
-        var isBonusLevel = PlayerPrefs.GetInt("BonusLevel", 0) == 1;
-        if (PlayerPrefs.GetInt("BonusLevel", 0) == 1)
-        {
-            PlayerPrefs.SetInt("BonusLevel", 0);
-
-            playerState.totalBalls += (int)(playerState.totalBalls * RemoteSettings.GetFloat("ExtraBallsPercent", 0.33f));
-        }
-#if UNITY_EDITOR
-        //playerState.totalBalls = 1;
-#endif
-
         playerState.totalBallsPerfect = playerState.totalBalls;
 
         playerState.capturedBalls = 0;
 
         levelText.text = "Level " + (playerState.level + 1);
-        if(isBonusLevel)
-        {
-            levelText.text += " Bonus";
-        }
 
         var isBossLevel = false;
-        
 
         Random.InitState(playerState.level);
         var labs = gameConfig.labyrinthsStr;
-        for(int i = 0; i < gameConfig.wavesCount; i++)
+        for (int i = 0; i < gameConfig.wavesCount; i++)
         {
-            Labyrinth lab;// = AssetPath.Load<Labyrinth>(labs[Random.Range(0, labs.Length)]);
-            
-            var labNum = playerState.level * gameConfig.wavesCount + i;
-            if (labNum < labs.Length)
+            Labyrinth lab;
+
+            // Если это первый уровень, выбираем случайный префаб из папки "Fruits"
+            if (playerState.level == 0)
             {
-                lab = AssetPath.Load < Labyrinth > (labs[labNum]);
+                // Загружаем все префабы из папки "Fruits"
+                var fruitLabs = Resources.LoadAll<Labyrinth>("Prefabs/Fruits");
+                if (fruitLabs.Length == 0)
+                {
+                    Debug.LogError("No prefabs found in Resources/Prefabs/Fruits!");
+                    return; // Остановить выполнение, если префабы не найдены
+                }
+
+                // Выбираем случайный префаб
+                lab = fruitLabs[Random.Range(0, fruitLabs.Length)];
             }
             else
             {
-                /*if (Random.value < RemoteSettings.GetFloat("FunLevelChance", 0.1f))
+                // Для остальных уровней используется стандартная логика
+                var labNum = playerState.level * gameConfig.wavesCount + i;
+                if (labNum < gameConfig.labyrinthsStr.Length)
                 {
-                    lab = gameConfig.fanLabyrinths[Random.Range(0, gameConfig.fanLabyrinths.Length)];
+                    lab = AssetPath.Load<Labyrinth>(gameConfig.labyrinthsStr[labNum]);
                 }
-                else*/
+                else
                 {
                     lab = mazes[Random.Range(0, mazes.Length)];
-
                     lab.GetComponentInChildren<MazeGenerator>().Draw();
                 }
             }
-            if(lab.isNeedLoonka)
-            {
-                loonka.SetActive(true);
 
-            }
-            if (lab.isBoss) isBossLevel = true;
+            // Создание лабиринта
             var newLab = SpawnLab(lab, i);
 
+            // Для первого лабиринта создаём мячи
             if (i == 0)
             {
-                SpawnBalls( newLab, playerState.totalBalls);
+                SpawnBalls(newLab, playerState.totalBalls);
             }
         }
 
-        if (isBossLevel)
-        {
-            levelText.text = "Boss Level " + (playerState.level + 1);
-        }
+
 
         SpawnExit(gameConfig.wavesCount);
 
@@ -290,7 +259,8 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
 
         ActivateBalls(activeLab);
     }
-
+   
+  
     static private IEnumerator SpawnNotifications()
     {
 #if UNITY_ANDROID
@@ -368,7 +338,7 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
         yield return null;
     }
 
-    private void SpawnBalls( Labyrinth newLab, int max)
+    private void SpawnBalls(Labyrinth newLab, int max)
     {
         var totalMax = RemoteSettings.GetInt("maxBalls", 450);
         var hasDifferentBalls = RemoteSettings.GetBool("hasDifferentBalls", false);
@@ -378,7 +348,7 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
         var count = 0;
         for (var d = -deep; d <= deep; d++)
         {
-            for (var j = 0; j < sq*sq; j++)
+            for (var j = 0; j < sq * sq; j++)
             {
                 float scaleFactor = Random.Range(0f, 1f);
                 int ballSize = count % 10;
@@ -416,9 +386,9 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
                 return;
             }
         }
-        else if(activeLab == 2)
+        else if (activeLab == 2)
         {
-            
+
         }
 
         callback(false);
@@ -450,7 +420,7 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
         {
             var lab = labyrinths[i];
             lab.roof.SetActive(i == v);
-            
+
         }
     }
 
@@ -459,7 +429,7 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
         for (int i = 0; i < 3; i++)
         {
             var lab = labyrinths[i];
-            
+
             foreach (var ball in lab.balls)
             {
                 ball.gameObject.SetActive(i == v);
@@ -482,13 +452,13 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
         var newLab = Instantiate(exitTubePrefab, transform);
         newLab.transform.position = Vector3.down * i * size;
 
-        
+
     }
     public static float rotsum = 0f;
     // Update is called once per frame
     void Update()
     {
-        
+
 
         if (rotsum > 20f && Input.GetMouseButton(0) && !EventSystem.current.IsPointerOverGameObject())
         {
@@ -518,7 +488,7 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
         var al = activeLab;
         bool isVoronka = loonka.activeSelf;
 
-        if(Time.time > vibrateTime + 5f)
+        if (Time.time > vibrateTime + 5f)
         {
             vibrateTime = Time.time;
             if (playerState.vibrate && RemoteSettings.GetBool("Vibro", false))
@@ -526,7 +496,7 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
                 //Handheld.Vibrate();
             }
         }
-        if(!inMove && sequence != null)
+        if (!inMove && sequence != null)
         {
             sequence.Kill();
         }
@@ -543,7 +513,7 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
             {
                 ball.transform.SetParent(labyrinths[activeLab].transform, true);
                 var vecDist = ball.transform.localPosition;
-                if(vecDist.magnitude > 0.4f)
+                if (vecDist.magnitude > 0.4f)
                 {
                     ball.transform.localPosition = vecDist / vecDist.magnitude * 0.4f;
                 }
@@ -563,13 +533,13 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
             labyrinths[al].transform.DOLocalMove(labyrinths[al].transform.position + Vector3.up * 3f, 0.8f);
         })
         .Append(
-            transform.DOMove(Vector3.up * size * (activeLab+1), 1.5f)
+            transform.DOMove(Vector3.up * size * (activeLab + 1), 1.5f)
         )
-        .AppendCallback(()=> {
-            if(labyrinths[al + 1].isBoss)
+        .AppendCallback(() => {
+            if (labyrinths[al + 1].isBoss)
             {
                 //Camera.main.transform.DOMoveZ(-16f, 0.8f);
-                labyrinths[al + 1].transform.DOScale(0.65f, 0.8f); 
+                labyrinths[al + 1].transform.DOScale(0.65f, 0.8f);
             }
         })
         .Append(
@@ -585,8 +555,8 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
             SoundSystem.ballsPitcher = 0;
             //ShowAds();
         });
-        
-        
+
+
     }
 
     public void OnLevelComplete()
@@ -601,9 +571,9 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
     public void OnCaptureBall(Ball ball)
     {
         if (inMove) return;
-        if(activeLab < labyrinths.Count - 1)
+        if (activeLab < labyrinths.Count - 1)
         {
-            ball.transform.SetParent(labyrinths[activeLab+1].transform, true);
+            ball.transform.SetParent(labyrinths[activeLab + 1].transform, true);
         }
 
         playerState.score += playerState.level + 1;
@@ -611,7 +581,7 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
 
         UpdateScore();
 
-        
+
         /*if(contactFX.emission.burstCount > 0)
         {
             contactFX.Emit(Random.Range(contactFX.emission.GetBurst(0).minCount, contactFX.emission.GetBurst(0).maxCount+1));
@@ -644,7 +614,7 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
 
     public void OnPurchase(string id)
     {
-        if(id == IAP_Manager.kProductIDConsumable)
+        if (id == IAP_Manager.kProductIDConsumable)
         {
             NoAdsButton.gameObject.SetActive(false);
             BannerBack.SetActive(false);
