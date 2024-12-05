@@ -340,35 +340,130 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
 
     private void SpawnBalls(Labyrinth newLab, int max)
     {
-        var totalMax = RemoteSettings.GetInt("maxBalls", 450);
-        var hasDifferentBalls = RemoteSettings.GetBool("hasDifferentBalls", false);
-        var deep = 2;
+        balls.Clear();
 
-        var sq = (int)Mathf.Sqrt(max / 5) + 1;
-        var count = 0;
-        for (var d = -deep; d <= deep; d++)
+        if (playerState.level == 1) // Второй уровень
         {
-            for (var j = 0; j < sq * sq; j++)
+            // Загрузка модели шара
+            GameObject ballPrefab = Resources.Load<GameObject>("Eight-ball Rack/Models/ball");
+            if (ballPrefab == null)
             {
-                float scaleFactor = Random.Range(0f, 1f);
-                int ballSize = count % 10;
-                if (ballSize < 7 || !hasDifferentBalls) ballSize = 0;
-                else if (ballSize < 9) ballSize = 1;
-                else if (ballSize < 10) ballSize = 2;
-                if (count >= max) continue;
-                var ball = Instantiate(ballSize == 2 ? gameConfig.ballBig : ballSize == 1 ? gameConfig.ballMid : gameConfig.ball, newLab.transform);
-                ball.transform.localPosition = Vector3.right * (j % sq - sq / 2) * 0.1f + Vector3.down * (j / sq - sq / 2) * 0.1f + Vector3.forward * d * 0.1f;
+                Debug.LogError("Ball model not found at Resources/Models/Eight-ball Rack/Models/ball");
+                return;
+            }
 
-                var scale = RemoteSettings.GetFloat(ballSize == 0 ? "ballSize0" : ballSize == 1 ? "ballSize1" : "ballSize2", 1f);
-                ball.transform.localScale *= (scale - 1f) * (totalMax - max) / totalMax + 1f;
+            // Загрузка текстур
+            Texture[] textures = Resources.LoadAll<Texture>("Eight-ball Rack/Textures");
+            if (textures == null || textures.Length == 0)
+            {
+                Debug.LogError("No textures found in Resources/Models/Eight-ball Rack/Textures");
+                return;
+            }
 
-                balls.Add(ball);
-                count++;
+            int count = 0;
+            int gridSize = (int)Mathf.Sqrt(max) + 1; // Сетка для размещения шаров
+            float ballSpacing = 0.2f; // Расстояние между шарами
+            float platformSize = 1.5f; // Размер платформы для ограничения позиций появления
+
+            for (int x = 0; x < gridSize; x++)
+            {
+                for (int z = 0; z < gridSize; z++)
+                {
+                    if (count >= max) break;
+
+                    // Вычисляем позицию шара в пределах платформы
+                    Vector3 position = new Vector3(
+                        (x - gridSize / 2) * ballSpacing, // Расстояние по X
+                        0.2f, // Высота над платформой
+                        (z - gridSize / 2) * ballSpacing // Расстояние по Z
+                    );
+
+                    // Ограничиваем шары так, чтобы они не выходили за пределы платформы
+                    if (Mathf.Abs(position.x) > platformSize || Mathf.Abs(position.z) > platformSize)
+                        continue;
+
+                    // Создаем шар
+                    GameObject newBallObject = Instantiate(ballPrefab, newLab.transform);
+                    newBallObject.transform.localPosition = position;
+
+                    // Добавляем физику
+                    Rigidbody rb = newBallObject.GetComponent<Rigidbody>();
+                    if (rb == null)
+                    {
+                        rb = newBallObject.AddComponent<Rigidbody>();
+                        rb.mass = 1.1f; // Настройка массы шара
+                        rb.drag = 7.2f; // Сопротивление
+                        rb.angularDrag = 0.5f; // Вращение
+                        rb.useGravity = true;
+                    }
+
+                    // Добавляем коллайдер с уменьшенным радиусом
+                    SphereCollider collider = newBallObject.GetComponent<SphereCollider>();
+                    if (collider == null)
+                    {
+                        collider = newBallObject.AddComponent<SphereCollider>();
+                    }
+                    collider.radius = 0.05f; // Настроить под размер модели шара
+
+                    // Применяем случайную текстуру
+                    Renderer renderer = newBallObject.GetComponent<Renderer>();
+                    if (renderer != null)
+                    {
+                        Texture randomTexture = textures[Random.Range(0, textures.Length)];
+                        renderer.material = new Material(Shader.Find("Standard"));
+                        renderer.material.mainTexture = randomTexture;
+                    }
+
+                    // Убеждаемся, что объект имеет компонент Ball
+                    Ball ball = newBallObject.GetComponent<Ball>();
+                    if (ball == null)
+                    {
+                        ball = newBallObject.AddComponent<Ball>();
+                    }
+
+                    balls.Add(ball);
+                    count++;
+                    // Устанавливаем увеличенный размер шара
+                    float ballScale = 2.0f; // Увеличен масштаб шара до 70% от его оригинального размера
+                    newBallObject.transform.localScale = Vector3.one * ballScale;
+                }
+            }
+        }
+        else
+        {
+            var totalMax = RemoteSettings.GetInt("maxBalls", 450);
+            var hasDifferentBalls = RemoteSettings.GetBool("hasDifferentBalls", false);
+            var deep = 2;
+
+            var sq = (int)Mathf.Sqrt(max / 5) + 1;
+            var count = 0;
+            for (var d = -deep; d <= deep; d++)
+            {
+                for (var j = 0; j < sq * sq; j++)
+                {
+                    float scaleFactor = Random.Range(0f, 1f);
+                    int ballSize = count % 10;
+                    if (ballSize < 7 || !hasDifferentBalls) ballSize = 0;
+                    else if (ballSize < 9) ballSize = 1;
+                    else if (ballSize < 10) ballSize = 2;
+                    if (count >= max) continue;
+                    var ball = Instantiate(ballSize == 2 ? gameConfig.ballBig : ballSize == 1 ? gameConfig.ballMid : gameConfig.ball, newLab.transform);
+                    ball.transform.localPosition = Vector3.right * (j % sq - sq / 2) * 0.1f + Vector3.down * (j / sq - sq / 2) * 0.1f + Vector3.forward * d * 0.1f;
+
+                    var scale = RemoteSettings.GetFloat(ballSize == 0 ? "ballSize0" : ballSize == 1 ? "ballSize1" : "ballSize2", 1f);
+                    ball.transform.localScale *= (scale - 1f) * (totalMax - max) / totalMax + 1f;
+
+                    balls.Add(ball);
+                    count++;
+                }
             }
         }
 
         ballsCountText.text = "x " + balls.Count;
     }
+
+
+
 
     public bool CanShowAds()
     {
