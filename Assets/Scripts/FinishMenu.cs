@@ -149,6 +149,26 @@ public class FinishMenu : MonoBehaviour, ILevelObserver
         }
     }
 
+    public void GoToLevel(int levelIndex)
+    {
+        // Устанавливаем уровень, который будет загружен
+        playerState.level = levelIndex;
+        playerState.Save();
+
+        // Проверяем, можно ли показывать рекламу перед загрузкой уровня
+        if (Level.instance.CanShowAds())
+        {
+            Level.instance.ShowAds((bool result) => {
+                // После рекламы загружаем сцену
+                SceneManager.LoadScene(1); // Здесь замените `1` на вашу сцену уровня
+            });
+        }
+        else
+        {
+            SceneManager.LoadScene(1); // Здесь замените `1` на вашу сцену уровня
+        }
+    }
+
     public void OnLevelStart()
     {
     }
