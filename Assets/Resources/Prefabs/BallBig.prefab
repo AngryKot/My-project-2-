@@ -14,6 +14,7 @@ GameObject:
   - component: {fileID: 6419577418324742268}
   - component: {fileID: 4803738439568453723}
   - component: {fileID: 3684457177497443031}
+  - component: {fileID: -233603213669468664}
   m_Layer: 0
   m_Name: BallBig
   m_TagString: Untagged
@@ -68,6 +69,7 @@ MeshRenderer:
   m_ProbeAnchor: {fileID: 0}
   m_LightProbeVolumeOverride: {fileID: 0}
   m_ScaleInLightmap: 1
+  m_ReceiveGI: 1
   m_PreserveUVs: 0
   m_IgnoreNormalsForChartDetection: 0
   m_ImportantGI: 0
@@ -105,6 +107,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 13262519aaeb1f348bd1de217734b95f, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  lastVel: {x: 0, y: 0, z: 0}
+  isContactBall: 0
 --- !u!54 &3684457177497443031
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -121,3 +125,19 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 1
+--- !u!114 &-233603213669468664
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 301851011440812478}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 7c3ac6bdfd405ce4b92e31a7c714a7e4, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  Intensity: 0
+  Mass: 0
+  stiffness: 0
+  damping: 0

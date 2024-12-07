@@ -865,6 +865,6 @@ PlayerSettings:
   projectName: Balls Out 3D
   organizationId: azur-interactive-games-limited
   cloudEnabled: 0
-  enableNativePlatformBackendsForNewInputSystem: 0
+  enableNativePlatformBackendsForNewInputSystem: 1
   disableOldInputManagerSupport: 0
   legacyClampBlendShapeWeights: 0

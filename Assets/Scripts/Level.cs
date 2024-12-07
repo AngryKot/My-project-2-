@@ -1,5 +1,4 @@
-﻿
-using System.Collections;
+﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using DG.Tweening;
@@ -122,7 +121,7 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
 
         playerState.LevelStart();
 
-        
+
 
         var targetAspect = 1080f / 1920f;
         var currentAspect = Screen.width / (float)Screen.height;
@@ -259,8 +258,8 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
 
         ActivateBalls(activeLab);
     }
-   
-  
+
+
     static private IEnumerator SpawnNotifications()
     {
 #if UNITY_ANDROID
@@ -342,7 +341,8 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
     {
         balls.Clear();
 
-        if (playerState.level == 1) // Второй уровень
+        // Второй уровень
+        if (playerState.level == 1)
         {
             // Загрузка модели шара
             GameObject ballPrefab = Resources.Load<GameObject>("Eight-ball Rack/Models/ball");
@@ -360,6 +360,14 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
                 return;
             }
 
+            // Создаём физический материал для шаров
+            PhysicMaterial ballPhysicMaterial = new PhysicMaterial
+            {
+                bounciness = 0.3f, // Лёгкая упругость
+                frictionCombine = PhysicMaterialCombine.Average, // Среднее трение
+                bounceCombine = PhysicMaterialCombine.Maximum // Максимальный отскок
+            };
+
             int count = 0;
             int gridSize = (int)Mathf.Sqrt(max) + 1; // Сетка для размещения шаров
             float ballSpacing = 0.2f; // Расстояние между шарами
@@ -373,9 +381,9 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
 
                     // Вычисляем позицию шара в пределах платформы
                     Vector3 position = new Vector3(
-                        (x - gridSize / 2) * ballSpacing, // Расстояние по X
-                        0.2f, // Высота над платформой
-                        (z - gridSize / 2) * ballSpacing // Расстояние по Z
+                        (x - gridSize / 2) * ballSpacing,
+                        0.2f,
+                        (z - gridSize / 2) * ballSpacing
                     );
 
                     // Ограничиваем шары так, чтобы они не выходили за пределы платформы
@@ -391,10 +399,13 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
                     if (rb == null)
                     {
                         rb = newBallObject.AddComponent<Rigidbody>();
-                        rb.mass = 1.1f; // Настройка массы шара
-                        rb.drag = 7.2f; // Сопротивление
-                        rb.angularDrag = 0.5f; // Вращение
+                        rb.mass = 2.1f;
+                        rb.drag = 3.6f;
+                        rb.angularDrag = 0.7f;
                         rb.useGravity = true;
+
+                        // Включаем Continuous Collision Detection для предотвращения прохождения через платформу
+                        rb.collisionDetectionMode = CollisionDetectionMode.Continuous;
                     }
 
                     // Добавляем коллайдер с уменьшенным радиусом
@@ -403,7 +414,10 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
                     {
                         collider = newBallObject.AddComponent<SphereCollider>();
                     }
-                    collider.radius = 0.05f; // Настроить под размер модели шара
+                    collider.radius = 0.05f;
+
+                    // Применяем физический материал к коллайдеру
+                    collider.material = ballPhysicMaterial;
 
                     // Применяем случайную текстуру
                     Renderer renderer = newBallObject.GetComponent<Renderer>();
@@ -424,13 +438,103 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
                     balls.Add(ball);
                     count++;
                     // Устанавливаем увеличенный размер шара
-                    float ballScale = 2.0f; // Увеличен масштаб шара до 70% от его оригинального размера
+                    float ballScale = 2.0f;
                     newBallObject.transform.localScale = Vector3.one * ballScale;
                 }
             }
         }
+
+        // Третий уровень
+        else if (playerState.level == 2)
+        {
+            // Логика для третьего уровня с использованием Jelly и Water Material
+            GameObject ballPrefab = Resources.Load<GameObject>("Prefabs/Ball");
+            if (ballPrefab == null)
+            {
+                Debug.LogError("Ball model not found at Prefabs/Ball");
+                return;
+            }
+
+            // Загружаем материал воды
+            Material waterMaterial = Resources.Load<Material>("WaterShader/Water Material");
+            if (waterMaterial == null)
+            {
+                Debug.LogError("Water material not found at WaterShader/Water Material");
+                return;
+            }
+
+            int count = 0;
+            int gridSize = (int)Mathf.Sqrt(max) + 1;
+            float ballSpacing = 0.25f; // Увеличенный шаг для предотвращения появления перекрытий
+            float platformSize = 1.5f;
+            float ballScale = 0.4f; // Увеличенный размер шаров
+
+            for (int x = 0; x < gridSize; x++)
+            {
+                for (int z = 0; z < gridSize; z++)
+                {
+                    if (count >= max) break;
+
+                    Vector3 position = new Vector3(
+                        (x - gridSize / 2) * ballSpacing,
+                        ballScale / 2, // Немного поднимаем шары над платформой
+                        (z - gridSize / 2) * ballSpacing
+                    );
+
+                    if (Mathf.Abs(position.x) + ballScale > platformSize || Mathf.Abs(position.z) + ballScale > platformSize)
+                        continue;
+
+                    GameObject newBallObject = Instantiate(ballPrefab, newLab.transform);
+                    newBallObject.transform.localPosition = position;
+                    newBallObject.transform.localScale = Vector3.one * ballScale;
+
+                    Rigidbody rb = newBallObject.GetComponent<Rigidbody>();
+                    if (rb == null)
+                    {
+                        rb = newBallObject.AddComponent<Rigidbody>();
+                        rb.mass = 1.1f;
+                        rb.drag = 1.2f;
+                        rb.angularDrag = 0.5f;
+                        rb.useGravity = true;
+                    }
+
+                    SphereCollider collider = newBallObject.GetComponent<SphereCollider>();
+                    if (collider == null)
+                    {
+                        collider = newBallObject.AddComponent<SphereCollider>();
+                    }
+                    collider.radius = 0.5f * ballScale; // Пропорциональный радиус для коллайдера
+
+                    Renderer renderer = newBallObject.GetComponent<Renderer>();
+                    if (renderer != null)
+                    {
+                        // Применение Water Material вместо текстуры
+                        renderer.material = new Material(waterMaterial);
+                    }
+
+                    Ball ball = newBallObject.GetComponent<Ball>();
+                    if (ball == null)
+                    {
+                        ball = newBallObject.AddComponent<Ball>();
+                    }
+
+                    // Применение эффекта Jelly
+                    Jelly jelly = newBallObject.AddComponent<Jelly>();
+                    jelly.Intensity = 0.15f;
+                    jelly.Mass = 0.1f;
+                    jelly.stiffness = 0.2f;
+                    jelly.damping = 0.8f;
+
+                    balls.Add(ball);
+                    count++;
+                }
+            }
+        }
+
+
         else
         {
+            // Обработка последующих уровней
             var totalMax = RemoteSettings.GetInt("maxBalls", 450);
             var hasDifferentBalls = RemoteSettings.GetBool("hasDifferentBalls", false);
             var deep = 2;
@@ -461,6 +565,7 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
 
         ballsCountText.text = "x " + balls.Count;
     }
+
 
 
 
@@ -756,3 +861,4 @@ public class Level : MonoBehaviour, IWaveObserver, ILevelObserver, ICaptureBallO
     {
     }
 }
+

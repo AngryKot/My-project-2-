@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement; // Для загрузки уровней
 using DG.Tweening;
 
 public class GameMenu : MonoBehaviour
@@ -24,7 +25,8 @@ public class GameMenu : MonoBehaviour
     public Sprite musicOnIcon;
     public Sprite musicOffIcon;
 
-    public Vector2 vibrateStartPosition;
+    public GameObject levelSelectionPanel; // Панель выбора уровней
+    public Button[] levelButtons; // Кнопки для выбора уровней (например, 3 кнопки для уровней 1, 2, 3)
 
     private void Awake()
     {
@@ -37,29 +39,38 @@ public class GameMenu : MonoBehaviour
         {
             button.anchoredPosition = new Vector2(184f, button.anchoredPosition.y);
         }
+
+        // Устанавливаем действия для кнопок выбора уровня
+        for (int i = 0; i < levelButtons.Length; i++)
+        {
+            int levelIndex = i; // Локальная копия индекса, чтобы избежать замыканий
+            levelButtons[i].onClick.AddListener(() => FinishMenu.instance.GoToLevel(levelIndex));
+        }
     }
 
     public void SwitchSettings()
     {
         settingsExpand = !settingsExpand;
-        foreach(var button in settingsButtons)
+        foreach (var button in settingsButtons)
         {
-            DOTween.To(()=>button.anchoredPosition, x => button.anchoredPosition = x, settingsExpand ? new Vector2(-184f, button.anchoredPosition.y) : new Vector2(184f, button.anchoredPosition.y), 0.3f);
+            DOTween.To(() => button.anchoredPosition, x => button.anchoredPosition = x, settingsExpand ? new Vector2(-184f, button.anchoredPosition.y) : new Vector2(184f, button.anchoredPosition.y), 0.3f);
         }
 
         UpdateVibrate();
         UpdateSound();
     }
 
+    public void ToggleLevelSelection()
+    {
+        // Показать или скрыть панель выбора уровня
+        levelSelectionPanel.SetActive(!levelSelectionPanel.activeSelf);
+    }
+
     public void SwitchVibration()
     {
         playerState.vibrate = !playerState.vibrate;
         playerState.Save();
-
-        
-
         UpdateVibrate();
-
     }
 
     public void SwitchSound()
@@ -95,5 +106,12 @@ public class GameMenu : MonoBehaviour
     void UpdateMusic()
     {
         musicImage.sprite = PlayerPrefs.GetInt("Music", 1) == 1 ? musicOnIcon : musicOffIcon;
+    }
+
+    void LoadLevel(int levelIndex)
+    {
+        Debug.Log($"Loading Level {levelIndex + 1}...");
+        // Замените "Level" на имя ваших сцен
+        SceneManager.LoadScene("Level" + (levelIndex + 1));
     }
 }
